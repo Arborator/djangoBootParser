@@ -1,4 +1,4 @@
-import json, os, random
+import json, os, random,time
 import numpy as np
 from pathlib import Path
 
@@ -8,7 +8,7 @@ kirparser_path = '../../PARSERS/BertForDeprel/'
 
 #the name of conda environment for each parser
 kirian_env = 'kirian'
-hops_env = 'isd2'
+hops_env = 'base'
 
 # os.system('conda init')
 #todo custom yaml for hopsparser
@@ -30,16 +30,18 @@ def prepare_folder(project_name, train_set, conll_to_pred, dev_set = None):
         idx_dev = random.sample(range(len(all_data)), k = int(len(all_data)*dev_set )) 
         #split
         idx_train = list(set(np.arange(len(all_data))) - set(idx_dev))
-        dev_set = '\n\n'.join(all_data[idx_dev]) + '\n'
-        train_set = '\n\n'.join(all_data[idx_train]) + '\n'
+        dev_set = '\n\n'.join(all_data[idx_dev]) + '\n\n'
+        train_set = '\n\n'.join(all_data[idx_train]) + '\n\n'
         
     # store
     with open( conll_path +f'train_{project_name}.conllu' , 'w') as f: 
         f.write( train_set )
     with open( conll_path +f'dev_{project_name}.conllu' , 'w') as f: 
         f.write( dev_set ) 
-    with open( conll_path +f'to_pred_{project_name}.conllu' , 'w') as f: 
-        f.write( conll_to_pred ) 
+    with open( conll_path +f'to_pred_{project_name}.conllu' , 'w') as f:
+        print('end of to_pred', conll_to_pred[-2:] )
+        #conll_to_pred = conll_to_pred if conll_to_pred[-2:] == '\n' else conll_to_pred+'\n'
+        f.write( conll_to_pred.strip()+'\n\n' ) 
 
     return conll_path[:-8] #project path
            
@@ -51,13 +53,13 @@ def train_pred_hops(project_path, info):
     conll_path =  project_path+'conllus/'
 
     #switch to the relevant environment
-    # os.system(f"conda activate {hops_env}") #how to correctly init env with django?
+    os.system(f"conda activate {hops_env}") #how to correctly init env with django?
 
     #train
     os.system(f'hopsparser train {proj_all_path}/example.yaml {conll_path}train_{info}.conllu \
             {project_path}hops_res/ \
             --dev-file \"{conll_path}dev_{info}.conllu\" \
-            --device \"cpu\"')
+            --device \"cuda:0\"')
             
     # #predict   
     parsed_path = f'{project_path}hops_res/predicted/parsed_{info}.conllu'
@@ -125,7 +127,7 @@ def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser =
     project_path = prepare_folder(info, train_set, conll_to_pred, dev_set)
     conll_path = project_path+'conllus/'
 
-
+    tmp = time.time()
     if(parser.lower() in ['hops', 'loic']):  
         parsed_path = train_pred_hops(project_path, info)
     
@@ -135,8 +137,10 @@ def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser =
     else:
         return 'Error: unknown parser type'
 
+    print(f'\ntrain and prediction done, taken time {time.time() - tmp}s')
     print(parsed_path)        
     #for current version return all    
     return open(parsed_path).read()
+
 
 
