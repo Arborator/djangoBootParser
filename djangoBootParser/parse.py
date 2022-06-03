@@ -175,4 +175,8 @@ def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser =
     #for current version return all   
     #origin_path, pred_path
     return copy_pos(f'{project_path}conllus/to_pred_{info}.conllu', parsed_path) if keep_pos else open(parsed_path).read() 
+<<<<<<< HEAD
+
+=======
+>>>>>>> 53edaef16d810171a0becf0e4dbbc968f39f7d49
 
