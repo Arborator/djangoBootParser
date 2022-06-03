@@ -1,10 +1,10 @@
-import json, os, random,time
+import json, os, random,time,re
 import numpy as np
 from pathlib import Path
 
 #default yaml file and ll temporal folder are put under the folder 'projects'
 proj_all_path = 'projects/'
-kirparser_path = '../../PARSERS/BertForDeprel/'
+kirparser_path = '/home/arboratorgrew/autogramm/parsers/BertForDeprel/'
 
 #the name of conda environment for each parser
 kirian_env = 'kirian'
@@ -53,19 +53,52 @@ def train_pred_hops(project_path, info):
     conll_path =  project_path+'conllus/'
 
     #switch to the relevant environment
-    os.system(f"conda activate {hops_env}") #how to correctly init env with django?
+    #os.system(f"conda activate {hops_env}") #how to correctly init env with django?
 
     #train
-    os.system(f'hopsparser train {proj_all_path}/example.yaml {conll_path}train_{info}.conllu \
+    os.system(f'/home/arboratorgrew/miniconda3/bin/hopsparser train {proj_all_path}/example.yaml {conll_path}train_{info}.conllu \
             {project_path}hops_res/ \
             --dev-file \"{conll_path}dev_{info}.conllu\" \
             --device \"cuda:0\"')
             
     # #predict   
     parsed_path = f'{project_path}hops_res/predicted/parsed_{info}.conllu'
-    os.system(f'hopsparser parse {project_path}hops_res/model/ \
+    os.system(f'/home/arboratorgrew/miniconda3/bin/hopsparser parse {project_path}hops_res/model/ \
             {conll_path}to_pred_{info}.conllu  {parsed_path}')
     return parsed_path
+
+
+def copy_pos(origin_path, pred_path):
+    print('coping original UPOS')
+    origin = [t.split('\n') for t in open(origin_path).read().strip().split('\n\n') if t]
+    pred = [t.split('\n') for t in open(pred_path).read().strip().split('\n\n') if t]
+
+    origin_dict = {}
+    pred_dict = {}
+
+    for conllu in origin:
+        key = conllu[0].split('=')[1].strip()
+        origin_dict[key] = conllu[1:]
+
+    for conllu in pred:
+        key = conllu[0].split('=')[1].strip()
+        pred_dict[key] = conllu[1:]
+
+    for key, conll in pred_dict.items():
+        for l, line in enumerate(conll):
+            if(line[0]!='#'):
+                info = line.split('\t')
+                info_tag = origin_dict[key][l].split('\t')
+                #print(info)
+                info[3] = info_tag[3]
+                pred_dict[key][l] = '\t'.join(info)
+        pred_dict[key] = '\n'.join(pred_dict[key])
+    
+    to_write ='\n\n'.join([f'# sent_id = {key}\n'+val for k, val in pred_dict.items()]) + '\n\n'
+    with open(pred_path, 'w') as f:
+        f.write(to_write)
+
+    return to_write
 
 
 
@@ -75,15 +108,15 @@ def train_pred_kirian(project_path, info):
     # Path( project_path+'hops_res/predicted/' ).mkdir(parents=True, exist_ok=True)
 
     #switch to the relevant environment
-    os.system(f"conda activate {kirian_env}")
+    #os.system(f"conda activate {kirian_env}")
 
     # Create the annotation schema
-    os.system(f"python3 {kirparser_path}BertForDeprel/preprocessing/1_compute_annotation_schema.py \
+    os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3 {kirparser_path}BertForDeprel/preprocessing/1_compute_annotation_schema.py \
         --input_folder \"{project_path}conllus\" \
         --output_path \"{project_path}annotation_schema.json\"")
         
     # Train  
-    os.system(f"python3 {kirparser_path}BertForDeprel/run.py train \
+    os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3 {kirparser_path}BertForDeprel/run.py train \
         --folder \"{project_path}\" \
         --ftrain \"{project_path}conllus/train_{info}.conllu\" \
         --ftest \"{project_path}conllus/dev_{info}.conllu\" \
@@ -96,7 +129,7 @@ def train_pred_kirian(project_path, info):
 
 
     #Predict 
-    os.system(f"python3  {kirparser_path}BertForDeprel/run.py predict \
+    os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
         --folder \"{project_path}\" \
         --fpred \"{project_path}conllus/to_pred_{info}.conllu\" \
         --multiple \
@@ -111,7 +144,7 @@ def train_pred_kirian(project_path, info):
     
 
 #todo: an option keep to keep specific column in conllu (currently copy past the origine value to the predicted one)
-def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser = 'hops'):
+def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser = 'hops', keep_pos = True):
     """
     project_name: string
     train_set, conll_to_pred, dev_set: a sequence of conllu seperated by '\n\n' end with '' or '\n'
@@ -138,9 +171,8 @@ def train_pred( project_name, train_set, conll_to_pred, dev_set = None, parser =
         return 'Error: unknown parser type'
 
     print(f'\ntrain and prediction done, taken time {time.time() - tmp}s')
-    print(parsed_path)        
-    #for current version return all    
-    return open(parsed_path).read()
-
-
+    print(parsed_path)   
+    #for current version return all   
+    #origin_path, pred_path
+    return copy_pos(f'{project_path}conllus/to_pred_{info}.conllu', parsed_path) if keep_pos else open(parsed_path).read() 
 
