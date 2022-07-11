@@ -21,5 +21,8 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('conllus/', views.conllus),
+    path('testBoot/',views.testBoot),
+    path('getResults/', views.getResults),
     path('api-auth/', include('rest_framework.urls')),
 ]
+
