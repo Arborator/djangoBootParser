@@ -1,0 +1,21 @@
+[Unit]
+Description=uWSGI Emperor
+After=syslog.target
+
+[Service]
+ExecStart= /usr/local/bin/uwsgi --emperor /etc/uwsgi/vassals --uid sylviepeng --gid sylviepeng --daemonize /home/sylviepeng/Autogram/djangoBootParser/uwsgi_log/uwsgi-emperor1.log
+#/root/uwsgi/uwsgi --ini /etc/uwsgi/emperor.ini
+# Requires systemd version 211 or newer
+RuntimeDirectory=/home/sylviepeng/Autogram/djangoBootParser/
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+#StandardError=syslog
+NotifyAccess=all
+
+User=sylviepeng
+Group=sylviepeng
+
+[Install]
+WantedBy=multi-user.target
+

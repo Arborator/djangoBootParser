@@ -23,6 +23,6 @@ urlpatterns = [
     path('conllus/', views.conllus),
     path('testBoot/',views.testBoot),
     path('getResults/', views.getResults),
+    path('removeFolder/', views.removeParseFolder),
     path('api-auth/', include('rest_framework.urls')),
 ]
-

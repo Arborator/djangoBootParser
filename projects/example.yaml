@@ -18,15 +18,16 @@ lexers:
   - name: bert-base-multilingual-uncased
     type: bert
     model: "bert-base-multilingual-uncased"
-    layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    layers: '*'
     subwords_reduction: "mean"
 # Training hyperparameters
 encoder_dropout: 0.5
 mlp_dropout: 0.5
 batch_size: 8
-epochs: 60
+# epochs: 3
 lr:
   base: 0.00003
   schedule:
     shape: linear
     warmup_steps: 100
+epochs: 3

@@ -3,8 +3,10 @@ from rest_framework.decorators import api_view
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from djangoBootParser.parse import train_pred, prepare_folder, get_progress
-import json, threading
+from djangoBootParser.parse import train_pred
+from djangoBootParser.prepare_dataset import prepare_folder
+from djangoBootParser.manage_parse import get_progress,  remove_project
+import json, threading, os
 
 
 def index(request):
@@ -43,27 +45,36 @@ def conllus(request):
         info = project_name[:-1] if project_name[-1] == '/' else project_name
 
         try:
-            need_train, just_parse_list = prepare_folder(info, train_name, train_set, parse_name, to_parse, parser_id, dev_set)
-            #dataset prepared, training is about to begin
-            if not need_train and just_parse_list == []:
-                Response({'datasetStatus': 'OK', 'parseStatus': 'Done'}) 
+            need_train, need_parse, project_fdname, to_parse_info, parser_ID, time = prepare_folder(info, train_name, train_set, parse_name, to_parse, parser_id, dev_set, epochs = epochs)
+            print( 'dataset prepared, training is about to begin')
+            if not need_train and not need_parse:
+                return Response({'datasetStatus': 'OK', 'parseStatus': 'Done', 'time': -1 }) 
+            if need_train and not need_parse:
+                remove_project(project_fdname)
+                return Response({'Error':'impossible case that is_trained = False but is_parsed = True '}, status=status.HTTP_400_BAD_REQUEST)
             # return Response({'datasetStatus': 'OK'})   
         except:
-            return Response({'error':'failed to prepare dataset'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'Error':'failed to prepare dataset'}, status=status.HTTP_400_BAD_REQUEST)
 
         #train and pred, receive parsed file if parser_id is valid 
         param = {
-            'project_name': project_name,  
-            'info' : info, 
-            'parser' : parser_id, 
+            'project_name': info,  
+            'project_fdname' : project_fdname,
+            'to_parse_info' : to_parse_info,
+            'parser_id' : parser_ID, 
             'keep_pos': keep_upos,
             'epochs': epochs,
-            'just_parse_list' : just_parse_list
+            'need_train' : need_train
             }
         parser_thread = threading.Thread(target= train_pred, kwargs = param)
         parser_thread.start()
 
-        return Response({'datasetStatus': 'OK', 'parseStatus': 'Begin'}) 
+        err_info = None
+        err_path = os.path.join( 'projects', project_fdname, 'format_err.txt' )
+        if os.path.exists(err_path):
+            err_info = open(err_path).read().strip()
+        print('TIME ', time)
+        return Response({'datasetStatus': 'OK', 'parseStatus': 'Begin', 'parserID':parser_ID,  'projectFolder': project_fdname, 'dataError': err_info, 'time': time}) 
     else:
         return Response({'error':'Only accept POST request'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -72,18 +83,34 @@ def conllus(request):
 @api_view(['POST'])
 def getResults(request):
     if request.method == 'POST':
-        project_name = request.data.get('project_name', '')
+        project_fdname = request.data.get('projectFdname', '')
         parser_id = request.data.get('parser', '')
-        status, res = get_progress(project_name, parser_id)
-
+        try:
+            status, res = get_progress(project_fdname, parser_id)
+        except:
+            remove_project(project_fdname)
         if status.lower() == 'fin':
-            parsed_names, parsed_conllu = res
-            return Response({'status': status , 'logPath': project_name, 'parsed_names': parsed_names, 'parsed_files' : parsed_conllu}) 
+            parsed_names, parsed_conllu, devScore = res
+            return Response({
+                'status': status, 
+                'logPath': project_fdname, 
+                'parsed_names': parsed_names, 
+                'parsed_files' : parsed_conllu,
+                'devScore' : devScore,
+                }) 
         else:
-            return Response({'status': status, 'logPath': project_name }) 
+            return Response({'status': status, 'logPath': project_fdname }) 
     else:
         return Response({'error':'Only accept POST request'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
+@api_view(['POST'])
+def removeParseFolder(request):
+    if request.method == 'POST':
+        project_fdname = request.data.get('projectFdname', '')
+        remove_project(project_fdname)
+        
+        return Response({'status': 'OK'})  
+    else:
+        return Response({'error':'Only accept POST request'}, status=status.HTTP_400_BAD_REQUEST)
 
