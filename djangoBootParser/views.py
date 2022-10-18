@@ -4,7 +4,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from djangoBootParser.parse import train_pred
-from djangoBootParser.prepare_dataset import prepare_folder
+from djangoBootParser.prepare_dataset import prepare_folder, check_empty_file
 from djangoBootParser.manage_parse import get_progress,  remove_project
 import json, threading, os
 
@@ -36,11 +36,13 @@ def conllus(request):
         epochs = request.data.get('epochs', 5)
         keep_upos = request.data.get('keep_upos', True)
 
-        #check param
-        if train_set is None:
-            return Response({'Error':'empty train set error'}, status=status.HTTP_400_BAD_REQUEST)
-        if to_parse is None:
-            return Response({'Error':'empty file to parse'}, status=status.HTTP_400_BAD_REQUEST)
+        #check param: remove potential empty file
+        train_name, train_set = check_empty_file(train_name, train_set)
+        parse_name, to_parse = check_empty_file(parse_name, to_parse)
+        if train_set in [None, []]:
+            return Response({'datasetStatus': 'Empty', 'error':'empty train set error'}, status=status.HTTP_400_BAD_REQUEST)
+        if to_parse in [None, []]:
+            return Response({ 'datasetStatus': 'Empty', 'error':'empty file to parse'}, status=status.HTTP_400_BAD_REQUEST)
 
         info = project_name[:-1] if project_name[-1] == '/' else project_name
 
@@ -51,7 +53,7 @@ def conllus(request):
                 return Response({'datasetStatus': 'OK', 'parseStatus': 'Done', 'time': -1 }) 
             if need_train and not need_parse:
                 remove_project(project_fdname)
-                return Response({'Error':'impossible case that is_trained = False but is_parsed = True '}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'datasetStatus': '0', 'Error':'impossible case that is_trained = False but is_parsed = True '}, status=status.HTTP_400_BAD_REQUEST)
             # return Response({'datasetStatus': 'OK'})   
         except:
             return Response({'Error':'failed to prepare dataset'}, status=status.HTTP_400_BAD_REQUEST)
@@ -64,7 +66,8 @@ def conllus(request):
             'parser_id' : parser_ID, 
             'keep_pos': keep_upos,
             'epochs': epochs,
-            'need_train' : need_train
+            'need_train' : need_train,
+            'parse_train' : request.data.get('parse_train', False)
             }
         parser_thread = threading.Thread(target= train_pred, kwargs = param)
         parser_thread.start()
@@ -73,7 +76,7 @@ def conllus(request):
         err_path = os.path.join( 'projects', project_fdname, 'format_err.txt' )
         if os.path.exists(err_path):
             err_info = open(err_path).read().strip()
-        print('TIME ', time)
+        print('TIME ', time,'\n')
         return Response({'datasetStatus': 'OK', 'parseStatus': 'Begin', 'parserID':parser_ID,  'projectFolder': project_fdname, 'dataError': err_info, 'time': time}) 
     else:
         return Response({'error':'Only accept POST request'}, status=status.HTTP_400_BAD_REQUEST)

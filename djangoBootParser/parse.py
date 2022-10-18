@@ -47,7 +47,11 @@ def train_hops(project_path, conll_path,  epochs = 5):
     logging( project_path, f'hopsParser: training model ({epochs} epochs in total)\n')
     print(PROJ_ALL_PATH)
     #TODO modify the source code of hops to set custom epochs and remove this part 
-    config = [l for l in open( os.path.join(PROJ_ALL_PATH,  'example.yaml')).read().strip().split('\n') if l] #remove ''
+    config_expath = os.path.join(PROJ_ALL_PATH,  'example.yaml')
+    if not os.path.exists(config_expath):
+        config_expath = 'example.yaml'
+        
+    config = [l for l in open( config_expath).read().strip().split('\n') if l] #remove ''
     config[-1] = f'epochs: {epochs}'
     with open( os.path.join( project_path,  'config.yaml'), 'w') as f:
         f.write('\n'.join(config))
@@ -62,7 +66,7 @@ def train_hops(project_path, conll_path,  epochs = 5):
     return
 
 
-def train_pred_hops(project_path, epochs = 5, need_train = True):
+def train_pred_hops(project_path, epochs = 5, need_train = True, parse_train = True):
     #make res folder
     res_path = os.path.join(project_path, f"{parserID_dict['hops']}_res")
     conll_path = os.path.join( res_path, 'conllus') 
@@ -80,19 +84,19 @@ def train_pred_hops(project_path, epochs = 5, need_train = True):
     to_pred_path = os.path.join( input_path, 'to_parse') 
     to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
     # to_parse_list = [ f for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-    to_parse_list = [ f + '.conllu' for f in to_parse_names ] 
-    train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
+    to_parse_list = [ f + '.conllu' for f in to_parse_names if f] 
 
     for conll_to_pred in to_parse_list:
         print('parsing ', conll_to_pred)
         os.system(f"/home/arboratorgrew/miniconda3/bin/hopsparser parse {os.path.join(res_path, 'model')} \
             {os.path.join(to_pred_path, conll_to_pred)}  {os.path.join(parsed_path, conll_to_pred)}")
 
-    
-    for conll_to_pred in train_list:
-        print('parsing ', conll_to_pred)
-        os.system(f"/home/arboratorgrew/miniconda3/bin/hopsparser parse {os.path.join(res_path, 'model')} \
-            {os.path.join(input_path, conll_to_pred)}  {os.path.join(parsed_path, conll_to_pred) }")
+    if parse_train:
+        train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
+        for conll_to_pred in train_list:
+            print('parsing ', conll_to_pred)
+            os.system(f"/home/arboratorgrew/miniconda3/bin/hopsparser parse {os.path.join(res_path, 'model')} \
+                {os.path.join(input_path, conll_to_pred)}  {os.path.join(parsed_path, conll_to_pred) }")
     #eval on dev
     eval_path = os.path.join( res_path, EVAL_DEV_NAME)
     Path( eval_path ).mkdir(parents=True, exist_ok=True)
@@ -125,7 +129,7 @@ def train_kirian(project_path, epochs = 5):
     return
 
 
-def train_pred_kirian(project_path, epochs = 5, need_train = True):
+def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train = True):
     #make res folder
     res_path = os.path.join(project_path, f"{parserID_dict['kirian']}_res")
     conll_path = os.path.join( res_path, 'conllus') 
@@ -142,8 +146,7 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True):
 
     to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
     # to_parse_list = [ f for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-    to_parse_list = [ f + '.conllu' for f in to_parse_names ] 
-    train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
+    to_parse_list = [ f + '.conllu' for f in to_parse_names if f ] 
 
     for conll_to_pred in to_parse_list :
         print(conll_to_pred)
@@ -160,20 +163,22 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True):
             --punct")
         add_multitok(parsed_path, to_parse_path)
 
-    for conll_to_pred in train_list :
-        print(conll_to_pred)
-        to_parse_path = os.path.join(input_path, conll_to_pred)
-        parsed_path = os.path.join( res_path, 'predicted' ,conll_to_pred )
-        os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
-            --folder \"{res_path}\" \
-            --fpred \"{to_parse_path}\" \
-            --multiple \
-            --overwrite \
-            --model  \"kirparser.pt\" \
-            --batch 8 \
-            --gpu_ids 0 \
-            --punct")
-        add_multitok(parsed_path, to_parse_path)
+    if parse_train:
+        train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
+        for conll_to_pred in train_list :
+            print(conll_to_pred)
+            to_parse_path = os.path.join(input_path, conll_to_pred)
+            parsed_path = os.path.join( res_path, 'predicted' ,conll_to_pred )
+            os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
+                --folder \"{res_path}\" \
+                --fpred \"{to_parse_path}\" \
+                --multiple \
+                --overwrite \
+                --model  \"kirparser.pt\" \
+                --batch 8 \
+                --gpu_ids 0 \
+                --punct")
+            add_multitok(parsed_path, to_parse_path)
     
     #eval on dev
     eval_path = os.path.join( res_path, EVAL_DEV_NAME)
@@ -211,7 +216,7 @@ def train_udify(project_path, epochs = 5):
     return
     
 
-def train_pred_udify(project_path,  epochs = 5, need_train = True):
+def train_pred_udify(project_path,  epochs = 5, need_train = True, parse_train = True):
     print("udify train pred")
     tmp = time.time()
     # Train  
@@ -232,7 +237,7 @@ def train_pred_udify(project_path,  epochs = 5, need_train = True):
 
     to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
     # to_parse_list = [ f for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-    to_parse_list = [ os.path.join( to_pred_path ,f + '.conllu') for f in to_parse_names ]
+    to_parse_list = [ os.path.join( to_pred_path ,f + '.conllu') for f in to_parse_names if f]
     train_list = [ os.path.join(input_path, f) for f in os.listdir(input_path) if f[-7:] == '.conllu']
 
     #eval on dev
@@ -241,7 +246,7 @@ def train_pred_udify(project_path,  epochs = 5, need_train = True):
     to_eval_path = os.path.join(res_path, 'conllus', 'dev.conllu')
     # parsed_fpath = os.path.join(eval_path, 'dev.conllu')
 
-    fpath_all = to_parse_list + train_list + [to_eval_path]
+    fpath_all = to_parse_list + train_list + [to_eval_path] if parse_train else to_parse_list + [to_eval_path]
 
     to_parse_all = [open(fpath).read().strip() for fpath in fpath_all ]
     print(fpath_all)
@@ -260,10 +265,10 @@ def train_pred_udify(project_path,  epochs = 5, need_train = True):
 
     # complete the original comments
     parsed_str = open( tmp_parsed_path ).read().strip()
-    dict_out = make_data_dict(parsed_str, uid_to_add = 'udifyParser')
+    dict_out = make_data_dict(parsed_str, uid_to_add = f'udifyParser{epochs}')
 
     conllu_str = open( tmp_parse_path ).read().strip()
-    dict_gold = make_data_dict(conllu_str, uid_to_add = 'udifyParser')
+    dict_gold = make_data_dict(conllu_str, uid_to_add = f'udifyParser{epochs}')
     dict_out = replace_col(dict_gold, dict_out, [], repl_comment = True)
 
     conll_out = dict2conll(dict_out)
@@ -289,19 +294,19 @@ def train_pred_udify(project_path,  epochs = 5, need_train = True):
 
 # stanza
 
-def train_pred_stanza(project_path, epochs = 5, need_train = True, keep_pos = True, tokenized = True,  epochs_tok = 5):
+def train_pred_stanza(project_path, epochs = 5, need_train = True, keep_pos = True, tokenized = True,  epochs_tok = 5, parse_train = True):
     pid = 'stanza' if tokenized else 'stanza_tok'
 
     os.system(f"/home/arboratorgrew/miniconda3/bin/python3 djangoBootParser/train_pred_stanza.py {project_path} {parserID_dict[pid]} \
-        {need_train} {epochs} {epochs_tok} {keep_pos} {tokenized}")
+        {need_train} {epochs} {epochs_tok} {keep_pos} {tokenized} {parse_train}")
 
     return os.path.join( project_path,  f"{parserID_dict[pid]}_res", "predicted/") 
     
 
-def train_pred_trankit(project_path,  epochs = 5, epochs_tok = 5, need_train = True, tokenized = True):
+def train_pred_trankit(project_path,  epochs = 5, epochs_tok = 5, need_train = True, tokenized = True, parse_train = True):
     pid = 'trankit' if tokenized else 'trankit_tok'
     os.system(f"/home/arboratorgrew/miniconda3/bin/python3 djangoBootParser/train_pred_trankit.py {project_path} {parserID_dict[pid]} \
-        {need_train} {epochs} {epochs_tok}  {tokenized}")
+        {need_train} {epochs} {epochs_tok}  {tokenized} {parse_train}")
     return os.path.join( project_path,  f"{parserID_dict[pid]}_res", "predicted/") 
     
 def eval_parsed(parsed_path, gold_path):
@@ -311,20 +316,18 @@ def eval_parsed(parsed_path, gold_path):
     return score
 
 
-
-
-def add_upos_uid(to_parse_fpath, parsed_path, parser_id, keep_pos = True):
+def add_upos_uid(to_parse_fpath, parsed_path, user_id, keep_pos = True):
     # repl_comment = 'udify' in parser_id
     if keep_pos:
-        print("Copy UPOS from input file to parsed results & add user_id = ", parser_id)
+        print("Copy UPOS from input file to parsed results & add user_id = ", user_id)
         for conll_to_pred in to_parse_fpath:
             print('process ', conll_to_pred)
             conllu_str = open( conll_to_pred).read().strip()
-            dict_gold = make_data_dict(conllu_str, uid_to_add = parser_id)
+            dict_gold = make_data_dict(conllu_str, uid_to_add = user_id)
 
             fname = os.path.join( parsed_path, os.path.basename(conll_to_pred))
             parsed_str = open( fname ).read().strip()
-            dict_out = make_data_dict(parsed_str, uid_to_add = parser_id )
+            dict_out = make_data_dict(parsed_str, uid_to_add = user_id )
             dict_out = replace_col(dict_gold, dict_out, [UPOS]) #, repl_comment = repl_comment)
             
             conll_out = dict2conll(dict_out)
@@ -332,15 +335,15 @@ def add_upos_uid(to_parse_fpath, parsed_path, parser_id, keep_pos = True):
                 outf.write(conll_out)
 
     else:
-        print("Add user_id = ", parser_id)
+        print("Add user_id = ", user_id)
         for conll_to_pred in to_parse_fpath:
             fname = os.path.join( parsed_path, os.path.basename(conll_to_pred))
             parsed_str = open( fname).read().strip()
-            dict_out = make_data_dict(parsed_str, uid_to_add = parser_id)
+            dict_out = make_data_dict(parsed_str, uid_to_add = user_id)
 
             # if repl_comment:
             #     conllu_str = open( conll_to_pred).read().strip()
-            #     dict_gold = make_data_dict(conllu_str, uid_to_add = parser_id)
+            #     dict_gold = make_data_dict(conllu_str, uid_to_add = user_id)
             #     dict_out = replace_col(dict_gold, dict_out, [], repl_comment = repl_comment)
 
             conll_out = dict2conll(dict_out)
@@ -364,7 +367,7 @@ def score_on_dev(parsed_dev_path, dev_path, parser_id, eval_path):
     return res
 
 #todo: an option keep to keep specific column in conllu (currently copy past the origine value to the predicted one)
-def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_pos = True, epochs = 5, need_train = True ):
+def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_pos = True, epochs = 5, need_train = True, parse_train = True ):
     """
     project_name: string
     train_set, to_pred, dev_set: a sequence of conllu seperated by '\n\n' end with '' or '\n'
@@ -393,20 +396,21 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
         tmp = time.time()
         # global PARSED_PATH
         if parser_id == 'hopsParser':  
-            parsed_path  = train_pred_hops(project_path, epochs = epochs, need_train = need_train)
+            parsed_path  = train_pred_hops(project_path, epochs = epochs, need_train = need_train, parse_train = parse_train)
         
         elif parser_id == 'kirParser':
-            parsed_path  = train_pred_kirian(project_path, epochs = epochs, need_train = need_train)
+            parsed_path  = train_pred_kirian(project_path, epochs = epochs, need_train = need_train,  parse_train = parse_train)
 
         elif parser_id == 'stanzaParser':
-            parsed_path  = train_pred_stanza(project_path, epochs = epochs, need_train = need_train, keep_pos =keep_pos )
+            parsed_path  = train_pred_stanza(project_path, epochs = epochs, need_train = need_train, keep_pos =keep_pos, parse_train = parse_train )
         
         elif parser_id == 'trankitParser':
-            parsed_path  = train_pred_trankit(project_path,  epochs = epochs, need_train = need_train)
+            parsed_path  = train_pred_trankit(project_path,  epochs = epochs, need_train = need_train, parse_train = parse_train)
 
         elif parser_id == 'udifyParser':
-            parsed_path  = train_pred_udify(project_path,  epochs = epochs, need_train = need_train)
-
+            parsed_path  = train_pred_udify(project_path,  epochs = epochs, need_train = need_train, parse_train = parse_train)
+        elif parser_id == 'trankitTokParser':
+            parsed_path  = train_pred_trankit(project_path,  epochs = epochs, need_train = need_train, tokenized = False, parse_train = parse_train)
         else:
             return 'Error: unknown parser type'
         
@@ -426,12 +430,13 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
 
         to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
         # to_parse_list = [ os.path.join(to_pred_path, f) for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-        to_parse_list = [ os.path.join(to_pred_path, f + '.conllu') for f in to_parse_names ]
+        to_parse_list = [ os.path.join(to_pred_path, f + '.conllu') for f in to_parse_names if f]
         train_list = [ os.path.join(input_path, f) for f in os.listdir(input_path) if f[-7:] == '.conllu']
 
         to_parse_fpath = to_parse_list + train_list
         print(to_parse_fpath)
-        add_upos_uid(to_parse_fpath = to_parse_fpath, parsed_path = parsed_path, parser_id = parser_id, keep_pos = True)
+        keep_upos = parser_id != 'trankitTokParser'
+        add_upos_uid(to_parse_fpath = to_parse_fpath, parsed_path = parsed_path, user_id = parser_id+str(epochs), keep_pos = keep_upos)
         
         logging( project_path, 'user_id etc. added, evaluate on dev set \n')
         #evaluate

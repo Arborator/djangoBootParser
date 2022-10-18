@@ -1,6 +1,5 @@
 ### functions to manage training etc.###
-import json, os, random,time,re, zipfile
-import numpy as np
+import json, os, random,time,re
 from pathlib import Path
 
 
@@ -43,23 +42,23 @@ def get_progress(project_fdname, parser_id):
         return (prog[-1], res)
     except FileNotFoundError:
         remove_project(project_fdname)
-
-
     
 
 def _get_results(project_path, parser_id ):
     conll_files = []
     conllu_list = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
-    conllu_list += [f[:-7] for f  in os.listdir(os.path.join( project_path, 'input_conllus')) if f[-7:] == '.conllu' ] #parsed train set
-    # conllu_list =  os.listdir(PARSED_PATH)
+    conllu_list = [ f for f in conllu_list if f]
+    # comment the following line: don't parse training set by default
+    # conllu_list += [f[:-7] for f  in os.listdir(os.path.join( project_path, 'input_conllus')) if f[-7:] == '.conllu' ] #parsed train set
     
     print(conllu_list)
     parsed_path = os.path.join( project_path, f'{parser_id}_res/predicted' )
     for filename in conllu_list:
-        conll_files.append(open(  os.path.join(parsed_path, filename + '.conllu') ).read())  
+        conll_files.append(open( os.path.join(parsed_path, filename + '.conllu') ).read())  
     score_dev = json.load( open( os.path.join(project_path, f'{parser_id}_res' , EVAL_DEV_NAME, f'{parser_id}_f1score.json') ) )
     return (conllu_list, conll_files, score_dev )
 
 def remove_project(project_fdname):
-    print(f'Remove {project_fdname}')
-    os.system(f'rm -r { os.path.join( PROJ_ALL_PATH , project_fdname) }')
+    if project_fdname != PROJ_ALL_PATH: 
+        print(f'Remove {project_fdname}')
+        os.system(f'rm -r { os.path.join( PROJ_ALL_PATH , project_fdname) }')

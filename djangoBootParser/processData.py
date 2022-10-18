@@ -21,7 +21,7 @@ comment_pattern_tosub = re.compile( r'# .+\n' )
 def make_data_dict(conllu_str, uid_to_add = 'hopsParser' ): 
     sent_ls = conllu_str.strip().split('\n\n')
     data_dict = {}
-    
+    print("len dict = ", len(sent_ls)) 
     add_sid_ls = False
     for idx, sent in enumerate(sent_ls):
         sid = re.findall(sid_pattern, sent)

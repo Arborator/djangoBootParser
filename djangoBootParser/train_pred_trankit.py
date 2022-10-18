@@ -135,7 +135,7 @@ def train_trankit(res_folder, train_path, dev_path, train_raw, dev_raw, epoch, e
     #posdep
     train_deprel_feat(res_folder, train_path, dev_path, epoch, category)
     #lemma
-    train_lemma(res_folder,train_path, dev_path, epoch, category)
+    train_lemma(res_folder,train_path, dev_path, min(20, epoch), category) #set max epoch as 20
     
     check_pipe(res_folder, category)
 
@@ -182,7 +182,7 @@ def pred_trankit( pipe , to_parse_path, parsed_path, task = 'tokenize'):
             outfile.write(conll_string)
         return
     
-    #lemmiatize + pos headid tag feat
+    #lemmatize + pos headid tag feat
     tok_ls = get_tok_ls(to_parse_path)
 
     if task == 'posdep':
@@ -270,12 +270,14 @@ def pred_trankit_toked(pipe, to_parse_path, res_folder):
 
 def pred_trankit_raw(pipe, to_parse_path, res_folder):
     #tokenize:
-    fname = ".".join(to_parse_path.split('.')[:-1])
+    print("deug0 res_fd: ",res_folder)
+    fname = ".".join(os.path.basename(to_parse_path).split('.')[:-1])
     tokenized_path = os.path.join( res_folder, f'tokenized_{fname}.conllu')
+    print("debug1: tok_path", tokenized_path)
     if to_parse_path[-7:] == '.conllu':
         #input is conllu format, extract raw text from # text = ...
         txt_path = os.path.join( os.path.dirname(res_folder), f'{fname}_to_tok.txt')
-        print(txt_path)
+        print("debug2: txt_path",txt_path)
         get_raw_file(to_parse_path, txt_path)
         pred_trankit(pipe, txt_path, tokenized_path, task = "tokenize")
     else:
@@ -308,39 +310,45 @@ def pred_trankit_raw_list(res_folder, to_parse_list, to_parse_dir, category = 'c
 
 
 
-def trankit_outfile(to_parse_dir, fname , res_folder, tokenized = True):
+def trankit_outfile(to_parse_dir, fname , res_folder, epochs , tokenized = True):
     # combine res to parsed_path, return parsed_path
     if tokenized:
         conllu_str = open( os.path.join( to_parse_dir, fname)).read().strip()
-        dict_out = make_data_dict(conllu_str, uid_to_add = 'trankitParser' )
+        dict_out = make_data_dict(conllu_str, uid_to_add = f'trankitParser{epochs}' )
 
         posdep_str = open( os.path.join( res_folder, f'posdep_{fname}')).read().strip()
-        dict_posdep = make_data_dict(posdep_str, uid_to_add = 'trankitParser' )
+        dict_posdep = make_data_dict(posdep_str, uid_to_add = f'trankitParser{epochs}' )
         dict_out = replace_col(dict_posdep, dict_out, [UPOS, XPOS, FEATS, HEAD, DEPREL])
 
         lemma_str = open( os.path.join( res_folder, f'lemmatize_{fname}')).read().strip()
-        dict_lemma = make_data_dict(lemma_str, uid_to_add = 'trankitParser' )
+        dict_lemma = make_data_dict(lemma_str, uid_to_add = f'trankitParser{epochs}' )
         dict_out = replace_col(dict_lemma, dict_out, [LEMMA])
     else:
-        #parsed from raw
+        # parsed from raw
+        # !!! won't be applied for arboratorgew, because tokenization task require linguistic knowledge. 
         conllu_str = open( os.path.join( res_folder, f'posdep_{fname}')).read().strip()
-        dict_out = make_data_dict(conllu_str, uid_to_add = 'trankitParser' )
+        dict_out = make_data_dict(conllu_str, uid_to_add = f'trankitTokParser{epochs}' )
 
         lemma_str = open( os.path.join( res_folder, f'lemmatize_{fname}')).read().strip()
-        dict_lemma = make_data_dict(lemma_str, uid_to_add = 'trankitParser' )
+        dict_lemma = make_data_dict(lemma_str, uid_to_add = f'trankitTokParser{epochs}' )
         dict_out = replace_col(dict_lemma, dict_out, [LEMMA])
 
         conllu_com = open( os.path.join( to_parse_dir, fname)).read().strip()
-        comment_dict = make_data_dict(conllu_com, uid_to_add = 'trankitParser' )
-
+        comment_dict = make_data_dict(conllu_com, uid_to_add = f'trankitTokParser{epochs}' )
+        # print("\n\n====DEBUG comment_dict\n")
         for idx, sent in dict_out.items():
-            dict_out[idx]['comment'] = comment_dict[idx]['comment'] 
+            if idx not in comment_dict.keys():
+                print("BUG idx", idx)
+                print(sent)
+                continue
+            if '# sent_id' in '\n'.join(comment_dict[idx]['comment']):
+                dict_out[idx]['comment'] = comment_dict[idx]['comment'] 
 
     return dict2conll(dict_out)
 
 
 
-def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, need_train = True, tokenized = True):
+def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, need_train = True, tokenized = True, parse_train = True):
     print("trankit train pred")
     res_folder = os.path.join( project_path, f"{parser_id}_res")
     Path( res_folder).mkdir(parents=True, exist_ok=True)
@@ -359,7 +367,10 @@ def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, nee
 
     # Train  
     if need_train:
-        logging( project_path, f'Training trankit model, category = {category}, epochs = {epochs}\n') 
+        if tokenized:
+            logging( project_path, f'Training trankit model, category = {category}, epochs = {epochs}\n') 
+        else:
+            logging( project_path, f'Training trankit model, category = {category}, epochs = {epochs}, type = trankitTokParser\n') 
         train_trankit(res_folder, train_path, dev_path, train_raw, dev_raw, epochs, epochs_tok, category) 
     #Parse
     logging( project_path, f'Parse files\n')
@@ -368,7 +379,7 @@ def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, nee
 
     to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
     # to_parse_list = [ f for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-    to_parse_list = [  f + '.conllu' for f in to_parse_names ]
+    to_parse_list = [  f + '.conllu' for f in to_parse_names if f ]
     train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
 
     predicted_path = os.path.join( res_folder,  "predicted/") 
@@ -386,19 +397,20 @@ def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, nee
             #fname with .conllu format
             pred_trankit_toked(p, os.path.join(to_pred_path,fname), res_folder)
 
-            conll_out = trankit_outfile(to_pred_path, fname , res_folder)
+            conll_out = trankit_outfile(to_pred_path, fname , res_folder, epochs)
             with open( os.path.join(predicted_path, fname) , 'w') as outf:
                 outf.write(conll_out)
 
-        for fname in train_list:
-            pred_trankit_toked(p, os.path.join(input_path,fname), res_folder)
+        if parse_train:
+            for fname in train_list:
+                pred_trankit_toked(p, os.path.join(input_path,fname), res_folder)
 
-            conll_out = trankit_outfile(input_path, fname , res_folder)
-            with open( os.path.join(predicted_path, fname) , 'w') as outf:
-                outf.write(conll_out)
+                conll_out = trankit_outfile(input_path, fname , res_folder, epochs)
+                with open( os.path.join(predicted_path, fname) , 'w') as outf:
+                    outf.write(conll_out)
         #eval
         pred_trankit_toked(p, dev_path, res_folder)
-        conll_out = trankit_outfile( os.path.join(res_folder, 'conllus'), 'dev.conllu' , res_folder)
+        conll_out = trankit_outfile( os.path.join(res_folder, 'conllus'), 'dev.conllu' , res_folder, epochs)
         with open( os.path.join(eval_path, 'dev.conllu') , 'w') as outf:
             outf.write(conll_out)
     else:
@@ -406,20 +418,21 @@ def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, nee
             #fname with .conllu format
             pred_trankit_raw(p, os.path.join(to_pred_path,fname), res_folder)
 
-            conll_out = trankit_outfile(to_pred_path, fname , res_folder, tokenized=False)
+            conll_out = trankit_outfile(to_pred_path, fname , res_folder, epochs, tokenized=False)
             with open( os.path.join(predicted_path, fname) , 'w') as outf:
                 outf.write(conll_out)
         #parse train file
         # pred_trankit_raw_list(res_folder, train_list, to_parse_dir = input_path, category = category  )
-        for fname in train_list:
-            pred_trankit_raw(p, os.path.join(input,fname), res_folder)
+        if parse_train:
+            for fname in train_list:
+                pred_trankit_raw(p, os.path.join(input_path,fname), res_folder)
 
-            conll_out = trankit_outfile(input_path, fname , res_folder,  tokenized=False)
-            with open( os.path.join(predicted_path, fname) , 'w') as outf:
-                outf.write(conll_out)
+                conll_out = trankit_outfile(input_path, fname , res_folder, epochs, tokenized=False)
+                with open( os.path.join(predicted_path, fname) , 'w') as outf:
+                    outf.write(conll_out)
         #eval
         pred_trankit_raw(p, dev_path, res_folder)
-        conll_out = trankit_outfile( os.path.join(res_folder, 'conllus'), 'dev.conllu' , res_folder)
+        conll_out = trankit_outfile( os.path.join(res_folder, 'conllus'), 'dev.conllu' , res_folder, epochs, tokenized=False)
         with open( os.path.join(eval_path, 'dev.conllu') , 'w') as outf:
             outf.write(conll_out)
 
@@ -430,9 +443,9 @@ def train_pred_trankit(project_path, parser_id,  epochs = 5, epochs_tok = 5, nee
 
 if __name__ == '__main__':
     # pred_fpath = 'trankit/pred_test_lem.conllu'
-    if len(sys.argv) < 7:
+    if len(sys.argv) < 8:
         print(len(sys.argv))
-        print("Usage: train_pred_trankit.py project_path parser_id need_train epochs epochs_tok tokenized", file=sys.stderr)
+        print("Usage: train_pred_trankit.py project_path parser_id need_train epochs epochs_tok tokenized parse_train", file=sys.stderr)
         sys.exit(-1)
 
     #set param
@@ -443,11 +456,20 @@ if __name__ == '__main__':
     need_train = True if sys.argv[3].lower() == 'true' else False
     epochs = int(sys.argv[4])
     epochs_tok = int(sys.argv[5])
-    tokenized = sys.argv[6]
+    tokenized = True if sys.argv[6].lower() == 'true' else False
+    parse_train = True if sys.argv[7].lower() == 'true' else False
 
-    print(type(need_train), need_train)
+    print(type(need_train),type(tokenized), type(parse_train))
+    print(need_train, tokenized, parse_train)
 
     # print(epochs, epochs_tok, type(epochs), type(epochs_tok))
-    predicted_path = train_pred_trankit(project_path, parser_id, epochs = epochs, epochs_tok = epochs_tok, need_train = need_train, tokenized = tokenized)
+    predicted_path = train_pred_trankit(
+        project_path, parser_id,
+        epochs = epochs,
+        epochs_tok = epochs_tok,
+        need_train = need_train,
+        tokenized = tokenized,
+        parse_train = parse_train
+        )
 
    

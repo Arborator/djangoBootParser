@@ -27,10 +27,28 @@ ERR_PATH = 'format_err.txt' #under project_path
 def estimate_time(parser_id, len_dataset, epochs):
     param_time = pd.read_csv('estimated_time_100ep.tsv', sep = '\t', index_col = 0)
 
+    if parser_id == 'trankitTokParser':
+        #TODO time test for tokenization
+        y = param_time['trankitParser']['a'] * len_dataset + param_time['trankitParser']['b']
+        return int(epochs * y /100) + 2
+    
     y = param_time[parser_id]['a'] * len_dataset + param_time[parser_id]['b']
     if parser_id == 'udifyParser':
         return int(epochs * (y - 20 )/100 ) + 20 + 2
     return int(epochs * y /100) + 2
+
+def check_empty_file(fname_ls, conll_ls):
+    if fname_ls is None or conll_ls is None:
+        return None, None
+
+    assert(len(fname_ls) == len(conll_ls))
+    for idx in range(len(conll_ls)):
+        if not conll_ls[idx]:
+            print('Empty file: ', fname_ls[idx])
+            fname_ls.remove(fname_ls[idx])
+    conll_ls = [l for l in conll_ls if l]
+    assert(len(fname_ls) == len(conll_ls))
+    return fname_ls, conll_ls
 
 
 def remove_old_project(capacity = 25):
@@ -48,8 +66,8 @@ def remove_old_project(capacity = 25):
             os.system(f"rm -r { os.path.join( PROJ_ALL_PATH, rm_info[0]) }")
 
 
-def sha512_foldername(conll_set_list, parser_id, dev_set, epochs):
-    input_string_ls = [str(parser_id), str(dev_set), str(epochs)]
+def sha512_foldername(conll_names, conll_set_list, parser_id, dev_set, epochs):
+    input_string_ls = [str(parser_id), str(dev_set), str(epochs)]+conll_names
     for conll in conll_set_list:
         input_string_ls.append(re.sub(comment_pattern_tosub ,'', conll).strip()  )
     input_string = '\n\n'.join(input_string_ls)
@@ -104,14 +122,21 @@ def check_format_conllu(conllu, err_path, is_to_parse = False ):
         log_err(err_path, f"checked for conllu begin with {info[0]} \n=====")
     return correct
 
-def check_format(fname, conllu_string, err_path, is_to_parse = False):
+def check_format(fname, conllu_string, err_path, parser_id,is_to_parse = False):
     conllu_sents = conllu_string.strip().split('\n\n')
     print('check_format')
     for conll in conllu_sents:
-        if not check_format_conllu(conll, err_path, is_to_parse = is_to_parse):
-            print("UDError in ", fname, " k = ", k, " current conll length ", len(conllu_sents))
-            log_err(f"End check {fname}\n")
-            conllu_sents.remove(conll)
+        if parser_id in ['trankitTokParser'] and is_to_parse:
+            # if we parse from raw data and we check the files to parse
+            print('check_format TOK')
+            if '# text =' not in conll:
+                log_err(f"In {fname}\nNo text to parse in {conll}")
+        else:
+            # if we check the gold files or if we will not do tokenization task 
+            if not check_format_conllu(conll, err_path, is_to_parse = is_to_parse):
+                print("UDError in ", fname, " current conll length ", len(conllu_sents))
+                # log_err(f"checking {fname}\n")
+                conllu_sents.remove(conll)
 
     return '\n\n'.join(conllu_sents)
 
@@ -144,32 +169,36 @@ def _create_folder( project_path, parser_id, train_names, train_set_list, parse_
     print(err_path)
     train_set = []
     for filename, conll in zip(train_names, train_set_list):
-        conll = check_format(filename, conll, err_path)
+        conll = check_format(filename, conll, err_path, parser_id)
         train_set.append(conll)
         with open( os.path.join( input_path,  filename + '.conllu'), 'w') as f:
             f.write(conll.strip() + '\n\n')
 
     for filename, conll in zip(parse_names, to_parse_list):
-        conll = check_format(filename, conll, err_path, is_to_parse= True)
+        conll = check_format(filename, conll, err_path, parser_id,is_to_parse= True)
         with open( os.path.join( to_pred_path, filename + '.conllu'), 'w') as f:
             f.write(conll.strip() + '\n\n')
-
+    
     with open( os.path.join(project_path, TO_PARSE_NAMES), 'w' ) as f:
         f.write('\t'.join(parse_names))
-
+    
     train_set = '\n\n'.join([ conll.strip() for conll in train_set])
     del train_set_list
     del to_parse_list
     
     # make dataset
     #all conllu sentence in training set, pay attention to the nombre of '\n' at the end of files
-    all_data = np.array(train_set.split('\n\n')) 
+    # remove np.array(train_set.split('\n\n')) cost too much if train_set is large
+    all_data = train_set.split('\n\n') 
+    print(len(all_data))
     #sample
     idx_dev = random.sample(range(len(all_data)), k = int(len(all_data)*dev_set )) 
     #split
     idx_train = list(set(np.arange(len(all_data))) - set(idx_dev))
-    dev_set = '\n\n'.join(all_data[idx_dev]) + '\n\n'
-    train_set = '\n\n'.join(all_data[idx_train]) + '\n\n'
+    dev_set_ls = [all_data[d] for d in idx_dev]
+    train_set_ls = [all_data[t] for t in idx_train] 
+    dev_set = '\n\n'.join(dev_set_ls) + '\n\n'
+    train_set = '\n\n'.join(train_set_ls) + '\n\n'
     print(len(all_data))
 
     # store dataset
@@ -202,14 +231,15 @@ def prepare_folder(project_name, train_names, train_set_list, parse_names, to_pa
 
     print("Check path")
     #project name with sha512
-    project_fdname = sha512_foldername(train_set_list, parser_id, dev_set, epochs) # train_set with config 
-    to_parse_info = sha512_foldername(to_parse_list, parser_id, dev_set, epochs)
+    project_fdname = sha512_foldername(train_names, train_set_list, parser_id, dev_set, epochs) # train_set with config 
+    to_parse_info = sha512_foldername(parse_names,to_parse_list, parser_id, dev_set, epochs)
 
-    print(project_fdname)
+    print(project_fdname, ' epochs:', epochs)
     is_trained, is_parsed = _project_exist(project_fdname, to_parse_info, parser_id)
     # print(is_trained, is_parsed)
     if is_trained and is_parsed:
-        return False, False, project_fdname, to_parse_info 
+        print('already trained and parsed')
+        return False, False, project_fdname, to_parse_info, parser_id, -1
 
     try:
         # Define path
@@ -241,6 +271,7 @@ def prepare_folder(project_name, train_names, train_set_list, parse_names, to_pa
         # create training set 
         logging( project_path, 'Preparing dataset\n', begin = True)
         parser_id, len_dataset= _create_folder( project_path, parser_id, train_names, train_set_list, parse_names, to_parse_list, dev_set = dev_set)
+        # TODO time test for tokenization task
         estim_time = estimate_time(parser_id, len_dataset, epochs)
         logging( project_path, f'Estimated time: {estim_time} min\n') 
         # add or update timestamp
