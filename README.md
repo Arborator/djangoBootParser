@@ -16,5 +16,5 @@ This backend is integrated into arboratogrew and you can directly use it there f
 
 We suggest using UDify for dataset less than 100 sentences and Trankit otherwise.<br>
 
-More detaile will be given soon in this readme.<br>
+More detail will be given soon in this readme.<br>
 
