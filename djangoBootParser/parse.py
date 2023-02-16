@@ -107,25 +107,26 @@ def train_pred_hops(project_path, epochs = 5, need_train = True, parse_train = T
 
 
 def train_kirian(project_path, epochs = 5):
-    # Create the annotation schema
     res_path = os.path.join(project_path, f"{parserID_dict['kirian']}_res")
-    os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3 {kirparser_path}BertForDeprel/preprocessing/1_compute_annotation_schema.py \
-        --input_folder \"{os.path.join( res_path, 'conllus')}\" \
-        --output_path \"{os.path.join( res_path, 'annotation_schema.json')}\"")
+
+    # This part is now useless as we can do it direclty while training
+    ## Create the annotation schema
+    # os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3 {kirparser_path}BertForDeprel/preprocessing/1_compute_annotation_schema.py \
+    #     --input_folder \"{os.path.join( res_path, 'conllus')}\" \
+    #     --output_path \"{os.path.join( res_path, 'annotation_schema.json')}\"")
         
     # Train  
     logging( project_path, f'kirParser: training model ({epochs} epochs in total)\n')
 
     os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3 {kirparser_path}BertForDeprel/run.py train \
-        --folder \"{res_path}\" \
+        --root_folder_path \"{res_path}\" \
         --ftrain \"{os.path.join( res_path, 'conllus/train.conllu')}\" \
         --ftest \"{os.path.join( res_path, 'conllus/dev.conllu')}\" \
-        --model \"kirparser.pt\" \
-        --batch 16 \
+        --model_name \"kirparser\" \
+        --batch_size 16 \
         --gpu_ids 0 \
-        --epochs {epochs} \
-        --punct \
-        --bert_type  \"bert-base-multilingual-uncased\"") 
+        --path_folder_compute_annotation_schema \"{os.path.join( res_path, 'conllus')}\" \
+        --max_epoch {epochs}") 
     return
 
 
@@ -133,7 +134,7 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
     #make res folder
     res_path = os.path.join(project_path, f"{parserID_dict['kirian']}_res")
     conll_path = os.path.join( res_path, 'conllus') 
-        
+    model_config_path = os.path.join(res_path, "kirparser.config.json")
     # Train  
     if need_train:
         train_kirian(project_path,  epochs = epochs)
@@ -151,16 +152,15 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
     for conll_to_pred in to_parse_list :
         print(conll_to_pred)
         to_parse_path = os.path.join(to_pred_path, conll_to_pred)
-        parsed_path = os.path.join( res_path, 'predicted', conll_to_pred )
+        parsed_folder_path = os.path.join( res_path, 'predicted')
+        parsed_path = os.path.join( parsed_folder_path, conll_to_pred )
         os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
-            --folder \"{res_path}\" \
-            --fpred \"{to_parse_path}\" \
-            --multiple \
+            --conf \"{model_config_path}\" \
+            --inpath \"{to_parse_path}\" \
+            --outpath \"{parsed_folder_path}\" \
             --overwrite  \
-            --model  \"kirparser.pt\" \
-            --batch 8 \
-            --gpu_ids 0 \
-            --punct")
+            --batch_size 32 \
+            --gpu_ids 0")
         add_multitok(parsed_path, to_parse_path)
 
     if parse_train:
@@ -168,32 +168,30 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
         for conll_to_pred in train_list :
             print(conll_to_pred)
             to_parse_path = os.path.join(input_path, conll_to_pred)
-            parsed_path = os.path.join( res_path, 'predicted' ,conll_to_pred )
+            parsed_folder_path = os.path.join( res_path, 'predicted')
+            parsed_path = os.path.join( parsed_folder_path ,conll_to_pred )
             os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
-                --folder \"{res_path}\" \
-                --fpred \"{to_parse_path}\" \
-                --multiple \
+                --conf \"{model_config_path}\" \
+                --inpath \"{to_parse_path}\" \
+                --outpath \"{parsed_folder_path}\" \
                 --overwrite \
-                --model  \"kirparser.pt\" \
-                --batch 8 \
-                --gpu_ids 0 \
-                --punct")
+                --batch_size 32 \
+                --gpu_ids 0")
             add_multitok(parsed_path, to_parse_path)
     
     #eval on dev
     eval_path = os.path.join( res_path, EVAL_DEV_NAME)
     Path( eval_path ).mkdir(parents=True, exist_ok=True)
     to_parse_path = os.path.join(conll_path, 'dev.conllu')
+    kirparser_predicted_folder_path = os.path.join(res_path, "predicted")
     parsed_path = os.path.join(eval_path, 'dev.conllu')
     os.system(f"/home/arboratorgrew/miniconda3/envs/kirian/bin/python3  {kirparser_path}BertForDeprel/run.py predict \
-        --folder \"{res_path}\" \
-        --fpred \"{to_parse_path}\" \
-        --multiple \
+        --conf \"{model_config_path}\" \
+        --inpath \"{to_parse_path}\" \
+        --outpath \"{kirparser_predicted_folder_path}\" \
         --overwrite \
-        --model  \"kirparser.pt\" \
-        --batch 8 \
-        --gpu_ids 0 \
-        --punct")
+        --batch_size 32 \
+        --gpu_ids 0")
     os.system(f"mv {os.path.join(res_path, 'predicted', 'dev.conllu')}  {parsed_path}")
     add_multitok(parsed_path, to_parse_path)
 
