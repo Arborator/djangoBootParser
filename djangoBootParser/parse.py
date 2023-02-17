@@ -319,8 +319,9 @@ def add_upos_uid(to_parse_fpath, parsed_path, user_id, keep_pos = True):
             print('process ', conll_to_pred)
             conllu_str = open( conll_to_pred).read().strip()
             dict_gold = make_data_dict(conllu_str, uid_to_add = user_id)
-
+            print('XX')
             fname = os.path.join( parsed_path, os.path.basename(conll_to_pred))
+            print(fname)
             parsed_str = open( fname ).read().strip()
             dict_out = make_data_dict(parsed_str, uid_to_add = user_id )
             dict_out = replace_col(dict_gold, dict_out, [UPOS]) #, repl_comment = repl_comment)
@@ -347,8 +348,9 @@ def add_upos_uid(to_parse_fpath, parsed_path, user_id, keep_pos = True):
 
 def score_on_dev(parsed_dev_path, dev_path, parser_id, eval_path):
     score = eval_parsed(parsed_dev_path, dev_path)
+    
 
-    metric_ls = ["UPOS", "UAS", "LAS"] if parser_id in ["hopsParser", "kirParser"] else [ "Tokens", "Sentences", "Words", "UPOS", "XPOS","UFeats", "Lemmas", "UAS", "LAS"]
+    metric_ls = ["UPOS", "UAS", "LAS"] if parser_id in ["hopsParser"] else [  "UPOS", "XPOS","UFeats", "Lemmas", "UAS", "LAS"] # ["Tokens", "Sentences","Words"]
     res = {}
     for metric in metric_ls:
         res[metric] = {
@@ -362,7 +364,7 @@ def score_on_dev(parsed_dev_path, dev_path, parser_id, eval_path):
     return res
 
 #todo: an option keep to keep specific column in conllu (currently copy past the origine value to the predicted one)
-def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_pos = True, epochs = 5, need_train = True, parse_train = True ):
+def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_pos = True, epochs = 5, need_train = True, parse_train = False ):
     """
     project_name: string
     train_set, to_pred, dev_set: a sequence of conllu seperated by '\n\n' end with '' or '\n'
@@ -425,10 +427,10 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
 
         to_parse_names = open( os.path.join( project_path, TO_PARSE_NAMES)).read().strip().split('\t')
         # to_parse_list = [ os.path.join(to_pred_path, f) for f in os.listdir(to_pred_path) if f[-7:] == '.conllu' ] 
-        to_parse_list = [ os.path.join(to_pred_path, f + '.conllu') for f in to_parse_names if f]
-        train_list = [ os.path.join(input_path, f) for f in os.listdir(input_path) if f[-7:] == '.conllu']
+        to_parse_fpath = [ os.path.join(to_pred_path, f + '.conllu') for f in to_parse_names if f]
+        # train_list = [ os.path.join(input_path, f) for f in os.listdir(input_path) if f[-7:] == '.conllu'] if parse_train else []
 
-        to_parse_fpath = to_parse_list + train_list
+        # to_parse_fpath = to_parse_list  + train_list
         print(to_parse_fpath)
         keep_upos = parser_id != 'trankitTokParser'
         add_upos_uid(to_parse_fpath = to_parse_fpath, parsed_path = parsed_path, user_id = parser_id+str(epochs), keep_pos = keep_upos)
@@ -438,6 +440,8 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
         eval_path = os.path.join( res_path, EVAL_DEV_NAME)
         dev_path = os.path.join( conll_path, 'xxx_stanza-ud-dev.conllu') if is_stanza else os.path.join( conll_path, 'dev.conllu' )
         parsed_dev_path = os.path.join(eval_path, 'xxx_stanza-ud-dev.conllu') if is_stanza else os.path.join( eval_path, 'dev.conllu' )
+        
+        print(parsed_dev_path, dev_path, parser_id, eval_path)
         score_dict = score_on_dev(parsed_dev_path, dev_path, parser_id, eval_path)
         print(score_dict)
         print(f"end for {parser_id}, taken time {time.time()-tmp} s")

@@ -61,4 +61,4 @@ def _get_results(project_path, parser_id ):
 def remove_project(project_fdname):
     if project_fdname != PROJ_ALL_PATH: 
         print(f'Remove {project_fdname}')
-        os.system(f'rm -r { os.path.join( PROJ_ALL_PATH , project_fdname) }')
+        # os.system(f'rm -r { os.path.join( PROJ_ALL_PATH , project_fdname) }')

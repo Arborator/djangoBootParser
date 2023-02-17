@@ -23,7 +23,9 @@ def make_data_dict(conllu_str, uid_to_add = 'hopsParser' ):
     data_dict = {}
     print("len dict = ", len(sent_ls)) 
     add_sid_ls = False
+
     for idx, sent in enumerate(sent_ls):
+        # print('DEBUG:')
         sid = re.findall(sid_pattern, sent)
         assert(len(sid) <=1 )
         data_dict[idx] = {'sent_id': sid[0]} if sid else {'sent_id': idx}

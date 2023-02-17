@@ -195,8 +195,8 @@ def _create_folder( project_path, parser_id, train_names, train_set_list, parse_
     idx_dev = random.sample(range(len(all_data)), k = int(len(all_data)*dev_set )) 
     #split
     idx_train = list(set(np.arange(len(all_data))) - set(idx_dev))
-    dev_set_ls = [all_data[d] for d in idx_dev]
-    train_set_ls = [all_data[t] for t in idx_train] 
+    dev_set_ls = [all_data[d].strip() for d in idx_dev]
+    train_set_ls = [all_data[t].strip() for t in idx_train] 
     dev_set = '\n\n'.join(dev_set_ls) + '\n\n'
     train_set = '\n\n'.join(train_set_ls) + '\n\n'
     print(len(all_data))

@@ -286,13 +286,16 @@ def load_conllu(file):
                 if word.parent and word.is_functional_deprel:
                     word.parent.functional_children.append(word)
 
+
             # Check there is a single root node
             if (
                 len([word for word in ud.words[sentence_start:] if word.parent is None])
                 != 1
             ):
+
                 print('\n\nMULTIPLE ROOT DEBUG', [(word.columns[ID], word.columns[FORM], word.columns[LEMMA], word.columns[HEAD]) for word in ud.words[sentence_start:] if word.parent is None], keepline)
-               # raise UDError("There are multiple roots in a sentence")
+                
+              # raise UDError("There are multiple roots in a sentence")
 
             # End the sentence
             ud.sentences[-1].end = index
