@@ -131,3 +131,4 @@ dmypy.json
 #model folder etc
 projects/
 cache/
+uwsgi_log/*
