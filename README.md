@@ -18,3 +18,8 @@ We suggest using UDify for dataset less than 100 sentences and Trankit otherwise
 
 More detail will be given soon in this readme.<br>
 
+## Logging and Debugging
+To see a live of the log of the server, run
+```bash
+tail -f uwsgi_log/emperor_uwsgi.log
+```
