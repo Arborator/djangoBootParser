@@ -161,7 +161,6 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
             --overwrite  \
             --batch_size 32 \
             --gpu_ids 0")
-        add_multitok(parsed_path, to_parse_path)
 
     if parse_train:
         train_list = [f for f in os.listdir(input_path) if f[-7:] == '.conllu']
@@ -177,7 +176,6 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
                 --overwrite \
                 --batch_size 32 \
                 --gpu_ids 0")
-            add_multitok(parsed_path, to_parse_path)
     
     #eval on dev
     eval_path = os.path.join( res_path, EVAL_DEV_NAME)
@@ -193,7 +191,6 @@ def train_pred_kirian(project_path, epochs = 5, need_train = True, parse_train =
         --batch_size 32 \
         --gpu_ids 0")
     os.system(f"mv {os.path.join(res_path, 'predicted', 'dev.conllu')}  {parsed_path}")
-    add_multitok(parsed_path, to_parse_path)
 
     return os.path.join(res_path, 'predicted/')
 
