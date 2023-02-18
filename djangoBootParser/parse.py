@@ -125,6 +125,8 @@ def train_kirian(project_path, epochs = 5):
         --model_name \"kirparser\" \
         --batch_size 16 \
         --gpu_ids 0 \
+        --conf_pretrain /models/SUD_all/SUD_all_1.config.json \
+        --overwrite_pretrain_classifiers \
         --path_folder_compute_annotation_schema \"{os.path.join( res_path, 'conllus')}\" \
         --max_epoch {epochs}") 
     return
