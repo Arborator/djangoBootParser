@@ -12,7 +12,10 @@ EVAL_DEV_NAME = 'evalDev'  # eval folder name, under {parser_id}_res folder
 #log path and parsed path to modified according to project 
 LOG_NAME = 'progress.txt'
 ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC = range(10)
-# PARSED_PATH = ''
+
+# for test use, if failed, move it into project/failed folder
+failed_path = os.path.join( PROJ_ALL_PATH, 'failed' )
+Path(failed_path ).mkdir(parents=True, exist_ok=True)
 
 
 def logging(project_path, log_info, begin = False):
@@ -62,3 +65,6 @@ def remove_project(project_fdname):
     if project_fdname != PROJ_ALL_PATH: 
         print(f'Remove {project_fdname}')
         # os.system(f'rm -r { os.path.join( PROJ_ALL_PATH , project_fdname) }')
+        os.system(f'mv {os.path.join( PROJ_ALL_PATH , project_fdname)} {failed_path}')
+
+        
