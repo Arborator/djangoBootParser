@@ -125,6 +125,7 @@ def check_format_conllu(conllu, err_path, parser_id, is_to_parse = False ):
 
 def _check_format_hops_parse(conllu, err_path):
     info = re.sub(comment_pattern_tosub ,'', conllu).strip().split('\n')
+    comment = re.findall(comment_pattern, conllu)
 
     conllu_info = [l.split('\t') for l in info]
     head = [word_info[HEAD] for word_info in conllu_info if '-' not in word_info[ID]]
@@ -132,10 +133,10 @@ def _check_format_hops_parse(conllu, err_path):
         return conllu
     root= [int(h) for h in head if h != '_' and int(h) == 0]
     if len(root) !=1:
+        log_err(err_path, f"\n\nWronging: no single root with {root} in file to parse, replacing head by _ for hopsparser\r\n")
         for idx in range(len(conllu_info)):
-            log_err(err_path, f"\n\nWronging: no single root with {root} in file to parse, replacing head by _ for hopsparser\r\n")
             conllu_info[idx][HEAD] = '_'
-        conllu = '\n'.join(['\t'.join(l) for l in conllu_info])
+        conllu = '\n'.join([comment]+['\t'.join(l) for l in conllu_info])
         return conllu
     return conllu
 
