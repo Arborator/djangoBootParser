@@ -133,10 +133,11 @@ def _check_format_hops_parse(conllu, err_path):
         return conllu
     root= [int(h) for h in head if h != '_' and int(h) == 0]
     if len(root) !=1:
-        log_err(err_path, f"\n\nWronging: no single root with {root} in file to parse, replacing head by _ for hopsparser\r\n")
+        log_err(err_path, f"\n\nWronging: no single root with root = {root} in file to parse, \
+            replacing head by _ for hopsparser\nconll begin with {comment[:200]}\r\n")
         for idx in range(len(conllu_info)):
             conllu_info[idx][HEAD] = '_'
-        conllu = '\n'.join([comment]+['\t'.join(l) for l in conllu_info])
+        conllu = '\n'.join(comment+['\t'.join(l) for l in conllu_info])
         return conllu
     return conllu
 
