@@ -26,7 +26,7 @@ kirian_env = 'kirian'
 hops_env = 'base'
 udify_env = 'udify'
 
-#TODO test stanza_tok and trankit_tok, integrate them into frontend
+
 parserID_dict = {
     'kirian': 'kirParser',
     'hops': 'hopsParser',

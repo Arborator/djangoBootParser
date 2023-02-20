@@ -4,7 +4,9 @@ from genericpath import isdir
 import json, zipfile, os, sys, time,random,re
 import numpy as np
 from pathlib import Path
-import base64, hashlib # sha512
+import base64, hashlib
+
+from yaml import parse # sha512
 from djangoBootParser.manage_parse import logging, remove_project
 import pandas as pd
 from datetime import datetime
@@ -93,7 +95,7 @@ def log_err(err_path, message):
         f.write(message)
 
         
-def check_format_conllu(conllu, err_path, is_to_parse = False ):
+def check_format_conllu(conllu, err_path, parser_id, is_to_parse = False ):
     info = re.sub(comment_pattern_tosub ,'', conllu).strip().split('\n')
     correct = True
 
@@ -106,7 +108,6 @@ def check_format_conllu(conllu, err_path, is_to_parse = False ):
         return correct
 
     conllu_info = [l.split('\t') for l in info]
-    # print(conllu_info)
     
     root = [word_info for word_info in conllu_info if '-' not in word_info[ID] and int(word_info[HEAD]) == 0 ]
     if len(root) != 1:
@@ -122,6 +123,23 @@ def check_format_conllu(conllu, err_path, is_to_parse = False ):
         log_err(err_path, f"checked for conllu begin with {info[0]} \n=====")
     return correct
 
+def _check_format_hops_parse(conllu, err_path):
+    info = re.sub(comment_pattern_tosub ,'', conllu).strip().split('\n')
+
+    conllu_info = [l.split('\t') for l in info]
+    head = [word_info[HEAD] for word_info in conllu_info if '-' not in word_info[ID]]
+    if np.all(head == '_'):
+        return conllu
+    root= [int(h) for h in head if h != '_' and int(h) == 0]
+    if len(root) !=1:
+        for idx in range(len(conllu_info)):
+            log_err(err_path, f"\n\nWronging: no single root with {root} in file to parse, replacing head by _ for hopsparser\r\n")
+            conllu_info[idx][HEAD] = '_'
+        conllu = '\n'.join(['\t'.join(l) for l in conllu_info])
+        return conllu
+    return conllu
+
+
 def check_format(fname, conllu_string, err_path, parser_id,is_to_parse = False):
     conllu_sents = conllu_string.strip().split('\n\n')
     print('check_format')
@@ -133,10 +151,12 @@ def check_format(fname, conllu_string, err_path, parser_id,is_to_parse = False):
                 log_err(f"In {fname}\nNo text to parse in {conll}")
         else:
             # if we check the gold files or if we will not do tokenization task 
-            if not check_format_conllu(conll, err_path, is_to_parse = is_to_parse):
+            if not check_format_conllu(conll, err_path, parser_id, is_to_parse = is_to_parse):
                 print("UDError in ", fname, " current conll length ", len(conllu_sents))
                 # log_err(f"checking {fname}\n")
                 conllu_sents.remove(conll)
+    if parser_id == 'hopsParser':
+        conllu_sents = [_check_format_hops_parse(c, err_path) for c in conllu_sents ]
 
     return '\n\n'.join(conllu_sents)
 
