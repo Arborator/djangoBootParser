@@ -291,11 +291,11 @@ def train_pred_udify(project_path,  epochs = 5, need_train = True, parse_train =
 
 # stanza
 
-def train_pred_stanza(project_path, epochs = 5, need_train = True, keep_pos = True, tokenized = True,  epochs_tok = 5, parse_train = True):
+def train_pred_stanza(project_path, epochs = 5, need_train = True, keep_upos = True, tokenized = True,  epochs_tok = 5, parse_train = True):
     pid = 'stanza' if tokenized else 'stanza_tok'
 
     os.system(f"/home/arboratorgrew/miniconda3/bin/python3 djangoBootParser/train_pred_stanza.py {project_path} {parserID_dict[pid]} \
-        {need_train} {epochs} {epochs_tok} {keep_pos} {tokenized} {parse_train}")
+        {need_train} {epochs} {epochs_tok} {keep_upos} {tokenized} {parse_train}")
 
     return os.path.join( project_path,  f"{parserID_dict[pid]}_res", "predicted/") 
     
@@ -313,9 +313,9 @@ def eval_parsed(parsed_path, gold_path):
     return score
 
 
-def add_upos_uid(to_parse_fpath, parsed_path, user_id, keep_pos = True):
+def add_upos_uid(to_parse_fpath, parsed_path, user_id, keep_upos = False):
     # repl_comment = 'udify' in parser_id
-    if keep_pos:
+    if keep_upos == True :
         print("Copy UPOS from input file to parsed results & add user_id = ", user_id)
         for conll_to_pred in to_parse_fpath:
             print('process ', conll_to_pred)
@@ -366,7 +366,7 @@ def score_on_dev(parsed_dev_path, dev_path, parser_id, eval_path):
     return res
 
 #todo: an option keep to keep specific column in conllu (currently copy past the origine value to the predicted one)
-def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_pos = True, epochs = 5, need_train = True, parse_train = False ):
+def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsParser', keep_upos = False, epochs = 5, need_train = True, parse_train = False ):
     """
     project_name: string
     train_set, to_pred, dev_set: a sequence of conllu seperated by '\n\n' end with '' or '\n'
@@ -401,7 +401,7 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
             parsed_path  = train_pred_kirian(project_path, epochs = epochs, need_train = need_train,  parse_train = parse_train)
 
         elif parser_id == 'stanzaParser':
-            parsed_path  = train_pred_stanza(project_path, epochs = epochs, need_train = need_train, keep_pos =keep_pos, parse_train = parse_train )
+            parsed_path  = train_pred_stanza(project_path, epochs = epochs, need_train = need_train, keep_upos =keep_upos, parse_train = parse_train )
         
         elif parser_id == 'trankitParser':
             parsed_path  = train_pred_trankit(project_path,  epochs = epochs, need_train = need_train, parse_train = parse_train)
@@ -434,8 +434,8 @@ def train_pred( project_name,  project_fdname, to_parse_info, parser_id = 'hopsP
 
         # to_parse_fpath = to_parse_list  + train_list
         print(to_parse_fpath)
-        keep_upos = parser_id != 'trankitTokParser'
-        add_upos_uid(to_parse_fpath = to_parse_fpath, parsed_path = parsed_path, user_id = parser_id+str(epochs), keep_pos = keep_upos)
+        # keep_upos = parser_id != 'trankitTokParser'
+        add_upos_uid(to_parse_fpath = to_parse_fpath, parsed_path = parsed_path, user_id = parser_id+str(epochs), keep_upos = keep_upos)
         
         logging( project_path, 'user_id etc. added, evaluate on dev set \n')
         #evaluate

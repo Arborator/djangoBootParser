@@ -53,7 +53,7 @@ def check_empty_file(fname_ls, conll_ls):
     return fname_ls, conll_ls
 
 
-def remove_old_project(capacity = 25):
+def remove_old_project(capacity = 40):
     print('Capacity in nb of folders: ', capacity)
     fd_list = [fd for fd in os.listdir(PROJ_ALL_PATH) if fd not in ['example.yaml', LOG_NAME] ]
 
@@ -68,8 +68,8 @@ def remove_old_project(capacity = 25):
             os.system(f"rm -r { os.path.join( PROJ_ALL_PATH, rm_info[0]) }")
 
 
-def sha512_foldername(conll_names, conll_set_list, parser_id, dev_set, epochs):
-    input_string_ls = [str(parser_id), str(dev_set), str(epochs)]+conll_names
+def sha512_foldername(conll_names, conll_set_list, parser_id, dev_set, epochs, keep_upos):
+    input_string_ls = [str(parser_id), str(dev_set), str(epochs), str(keep_upos)]+conll_names
     for conll in conll_set_list:
         input_string_ls.append(re.sub(comment_pattern_tosub ,'', conll).strip()  )
     input_string = '\n\n'.join(input_string_ls)
@@ -241,7 +241,7 @@ def _create_folder( project_path, parser_id, train_names, train_set_list, parse_
     return parser_id, len(all_data)
 
 
-def prepare_folder(project_name, train_names, train_set_list, parse_names, to_parse_list, parser_id = 'hopsParser', dev_set = 0.1, epochs = 100):
+def prepare_folder(project_name, train_names, train_set_list, parse_names, to_parse_list, parser_id = 'kirParser', dev_set = 0.1, epochs = 100, keep_upos= False):
     """
     make temporal project folder
     by default we parse also the training set  
@@ -253,8 +253,8 @@ def prepare_folder(project_name, train_names, train_set_list, parse_names, to_pa
 
     print("Check path")
     #project name with sha512
-    project_fdname = sha512_foldername(train_names, train_set_list, parser_id, dev_set, epochs) # train_set with config 
-    to_parse_info = sha512_foldername(parse_names,to_parse_list, parser_id, dev_set, epochs)
+    project_fdname = sha512_foldername(train_names, train_set_list, parser_id, dev_set, epochs, keep_upos) # train_set with config 
+    to_parse_info = sha512_foldername(parse_names,to_parse_list, parser_id, dev_set, epochs, keep_upos)
 
     print(project_fdname, ' epochs:', epochs)
     is_trained, is_parsed = _project_exist(project_fdname, to_parse_info, parser_id)

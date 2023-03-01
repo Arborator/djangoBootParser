@@ -34,7 +34,7 @@ def conllus(request):
         dev_set = request.data.get('dev' , None)
         parser_id = request.data.get('parser', 'hopsParser')
         epochs = request.data.get('epochs', 5)
-        keep_upos = request.data.get('keep_upos', True)
+        keep_upos = request.data.get('keep_upos', False)
 
         #check param: remove potential empty file
         train_name, train_set = check_empty_file(train_name, train_set)
@@ -47,7 +47,7 @@ def conllus(request):
         info = project_name[:-1] if project_name[-1] == '/' else project_name
 
         try:
-            need_train, need_parse, project_fdname, to_parse_info, parser_ID, time = prepare_folder(info, train_name, train_set, parse_name, to_parse, parser_id, dev_set, epochs = epochs)
+            need_train, need_parse, project_fdname, to_parse_info, parser_ID, time = prepare_folder(info, train_name, train_set, parse_name, to_parse, parser_id, dev_set, epochs, keep_upos)
             print( 'dataset prepared, training is about to begin')
             if not need_train and not need_parse:
                 return Response({'datasetStatus': 'OK', 'parseStatus': 'Done', 'time': -1 }) 
@@ -64,7 +64,7 @@ def conllus(request):
             'project_fdname' : project_fdname,
             'to_parse_info' : to_parse_info,
             'parser_id' : parser_ID, 
-            'keep_pos': keep_upos,
+            'keep_upos': keep_upos,
             'epochs': epochs,
             'need_train' : need_train,
             'parse_train' : request.data.get('parse_train', False)

@@ -442,7 +442,7 @@ def pred_stanza_raw(to_parse_list, parsed_dir, model_dir, pretrain_path, by_sent
     
 
 
-def train_pred_stanza(project_path, parser_id, epochs = 5, need_train = True, keep_pos = True, tokenized = True,  epochs_tok = 100):
+def train_pred_stanza(project_path, parser_id, epochs = 5, need_train = True, keep_upos = True, tokenized = True,  epochs_tok = 100):
     print("stanza train pred")
     res_folder = os.path.join( abs_root, project_path, f"{parser_id}_res")
     conll_path = os.path.join( res_folder, 'extern_data/conllus/xxx_stanza')
@@ -471,7 +471,7 @@ def train_pred_stanza(project_path, parser_id, epochs = 5, need_train = True, ke
         pretrain_path = pretrain_wv( emb_train_list, wv_dir = "data/wordvec/fasttext/Custom_Lang", vec_size = 100)
         #TODO 11/08/  22:06
         k = len( open( os.path.join( conll_path, 'xxx_stanza-ud-train.conllu' )).read().strip().split('\n\n') ) 
-        train_stanza(res_folder, k, pretrain_path = pretrain_path, with_gold = keep_pos, batch_size = 8,  batch_size_tok = 8, epochs = epochs, epochs_tok = epochs_tok)
+        train_stanza(res_folder, k, pretrain_path = pretrain_path, with_gold = keep_upos, batch_size = 8,  batch_size_tok = 8, epochs = epochs, epochs_tok = epochs_tok)
         
     #Parse
     to_parse_all = [ os.path.join( to_pred_path, fname ) for fname in to_parse_list ] 
@@ -483,7 +483,7 @@ def train_pred_stanza(project_path, parser_id, epochs = 5, need_train = True, ke
     logging( os.path.join( abs_root, project_path), f'Parsing files...\n')
 
 
-    if keep_pos: #pretagged
+    if keep_upos: #pretagged
         pred_stanza_tagged(to_parse_all,  parsed_dir = predicted_path, model_dir = res_folder, pretrain_path = pretrain_path)
         #dev
         pred_stanza_tagged([dev_path],  parsed_dir = eval_path, model_dir = res_folder, pretrain_path = pretrain_path)
@@ -505,7 +505,7 @@ def train_pred_stanza(project_path, parser_id, epochs = 5, need_train = True, ke
 
 if __name__ == '__main__':
     if len(sys.argv)  < 8:
-        print("Usage: train_pred_stanza.py project_path parser_id need_train epochs epochs_tok keep_pos tokenized", file=sys.stderr)
+        print("Usage: train_pred_stanza.py project_path parser_id need_train epochs epochs_tok keep_upos tokenized", file=sys.stderr)
         sys.exit(-1)
 
     project_path = sys.argv[1]
@@ -516,9 +516,9 @@ if __name__ == '__main__':
     print("Stanza:", type(need_train), need_train)
     epochs = int(sys.argv[4])
     epochs_tok = int(sys.argv[5])
-    keep_pos = sys.argv[6]
+    keep_upos = sys.argv[6]
     tokenized = sys.argv[7]
-    print("keep pos:", type(keep_pos), keep_pos)
+    print("keep pos:", type(keep_upos), keep_upos)
     print("tokenized:", type(tokenized), tokenized)
 
     #!!!Important to change word directory as model_dir e.g. stanza_tok_res that including save_models, data, extren_datat etc.
@@ -526,11 +526,11 @@ if __name__ == '__main__':
     os.system("pwd")
 
     train_pred_stanza(project_path, parser_id, epochs = epochs, need_train = need_train, \
-        keep_pos = keep_pos, tokenized = tokenized,  epochs_tok = epochs_tok)
+        keep_upos = keep_upos, tokenized = tokenized,  epochs_tok = epochs_tok)
 
     # try:
     #     train_pred_stanza(project_path, parser_id, epochs = epochs, need_train = need_train, \
-    #         keep_pos = keep_pos, tokenized = tokenized,  epochs_tok = epochs_tok)
+    #         keep_upos = keep_upos, tokenized = tokenized,  epochs_tok = epochs_tok)
     # except FileNotFoundError:
     #     logging(os.path.join( abs_root, project_path),   'Error\n')
     #     remove_project( os.path.join( abs_root, project_path))
